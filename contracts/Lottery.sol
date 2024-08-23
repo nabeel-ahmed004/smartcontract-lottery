@@ -6,8 +6,11 @@ import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 // import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 // import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
- import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
 //import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+
+// import "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+// import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
 
 error Lottery__NotEnoughETHEntered();
 error Lottery__TransferFailed();

@@ -12,13 +12,11 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
   const { deployer } = await getNamedAccounts(); //this extracts the deployer from the 'namedAccounts' section of our hardhat.config
   const chainId = network.config.chainId;
   let vrfCoordinatorV2Address, subscriptionId, VRFCoordinatorV2Mock;
-
   if (developmentChains.includes(network.name)) {
     //Method 1 - Both methods should be the same but this one does not work
     /*const VRFCoordinatorV2Mock = await deployments.get("VRFCoordinatorV2Mock");
     vrfCoordinatorV2Address = VRFCoordinatorV2Mock.address; //address 1*/
     //log(`address 1: ${vrfCoordinatorV2Address}`);
-
     // Method 2
     const VRFCoordinatorV2MockDeployment = await deployments.get(
       "VRFCoordinatorV2Mock"
@@ -46,12 +44,10 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
     vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"];
     subscriptionId = networkConfig[chainId]["subcriptionId"];
   }
-
   const entranceFee = networkConfig[chainId]["entranceFee"];
   const gasLane = networkConfig[chainId]["gasLane"];
   const callBackGasLimit = networkConfig[chainId]["callBackGasLimit"];
   const interval = networkConfig[chainId]["interval"];
-
   const args = [
     vrfCoordinatorV2Address,
     entranceFee,
@@ -60,14 +56,12 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
     callBackGasLimit,
     interval,
   ];
-
   const lottery = await deploy("Lottery", {
     from: deployer,
     args: args,
     log: true,
     waitConfirmations: network.config.blockConfirmations || 1,
   });
-
   /*
   Here the issue is that we should be adding our smartcontract as the consumer to the chainLink vrfCoordinator.
   We do the same through GUI:
@@ -81,7 +75,6 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
     await VRFCoordinatorV2Mock.addConsumer(subscriptionId, lottery.address);
     log("Consumer is added");
   } // remember to add these lines
-
   if (
     !developmentChains.includes(network.name) &&
     process.env.ETHERSCAN_API_KEY

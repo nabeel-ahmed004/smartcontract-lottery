@@ -1,8 +1,10 @@
 require("@nomicfoundation/hardhat-toolbox");
+// require("@nomiclabs/hardhat-waffle");
+// require("@nomiclabs/hardhat-etherscan");
+// require("hardhat-gas-reporter");
 //require("@chainlink/contracts");
 //require("@nomiclabs/hardhat-solhint");
 require("hardhat-deploy");
-//require("@nomiclabs/hardhat-waffle");
 require("dotenv").config();
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL;
@@ -21,10 +23,13 @@ module.exports = {
     },
     sepolia: {
       chainId: 11155111,
-      blockConfirmations: 6,
-      url: SEPOLIA_RPC_URL,
+      blockConfirmations: 3,
+      url: "https://sepolia.infura.io/v3/7982f71bcdcd40a4a98119108d558cdc",
       accounts: [PRIVATE_KEY],
     },
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY, //we need an API key from etherscan for verifying our smart contract
   },
   namedAccounts: {
     deployer: {
@@ -42,7 +47,7 @@ module.exports = {
     //coinmarketcap: COINMARKETCAP_API_KEY,
     token: "MATIC",
   },
-  mocha: {
-    timeout: 200000,
-  },
+  /*mocha: {
+    timeout: 300000,
+  },*/
 };
