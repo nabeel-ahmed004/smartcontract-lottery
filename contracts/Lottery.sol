@@ -1,16 +1,19 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.8;
 
-//import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
-// import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
-// import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-//import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+// //import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+// import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
+// // import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+// import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
+// // import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+// //import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 
-// import "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
-// import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
+import "hardhat/console.sol"; //this is used to console.log variables and stuff in our contracts just like javascript
+//we should run tests like 'yarn hardhat test' to see the output of these console.logs in our terminal
+//we can use this for debugging
 
 error Lottery__NotEnoughETHEntered();
 error Lottery__TransferFailed();
@@ -26,7 +29,7 @@ error Lottery__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint2
  * @dev This contract implements Chainlink VRF V2 and Chainlink Keepers
  */
 
-contract Lottery is VRFConsumerBaseV2, AutomationCompatibleInterface {
+contract Lottery is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
 
     //user type declarations
     enum LotteryState {
@@ -38,11 +41,11 @@ contract Lottery is VRFConsumerBaseV2, AutomationCompatibleInterface {
     uint256 private immutable i_entranceFee;
     address payable[] private s_players;
     bytes32 private immutable i_gasLane;
-    uint64 private immutable i_subscriptionID;
-    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+    uint256 private immutable i_subscriptionID;
     uint32 private immutable i_callbackGasLimit;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
-    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+    //VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
 
     //lottery variables
     address private s_recentWinner;
@@ -59,13 +62,13 @@ contract Lottery is VRFConsumerBaseV2, AutomationCompatibleInterface {
     constructor(
         address vrfCoordinatorV2,
         uint256 entranceFee,
-        bytes32 gasLane,
-        uint64 subscriptionID,
+        bytes32 gasLane, //keyHash
+        uint256 subscriptionID,
         uint32 callbackGasLimit,
         uint256 interval
-    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+    ) VRFConsumerBaseV2Plus(vrfCoordinatorV2) {
         i_entranceFee = entranceFee;
-        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        //i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
         i_gasLane = gasLane;
         i_subscriptionID = subscriptionID;
         i_callbackGasLimit = callbackGasLimit;
@@ -100,12 +103,13 @@ contract Lottery is VRFConsumerBaseV2, AutomationCompatibleInterface {
      * 4. The lottery should be in an "open" state i.e. when we are waiting for the random number, we should not allow new players
      * So, we should make a state variable for the above purpose
      */
-    function checkUpkeep ( bytes memory /*checkData*/ ) public override returns ( bool upkeepNeeded, bytes memory /*performData*/ ) {
+    function checkUpkeep ( bytes memory /*checkData*/ ) public view override returns ( bool upkeepNeeded, bytes memory /*performData*/ ) {
         bool isOpen = (s_lotteryState == LotteryState.OPEN); //isOpen is true if s_lotteryState is in an open state, otherwise it is false
         bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval); //check if the differnce between the start of lottery and current time is greater than the interval
         bool hasPlayers = (s_players.length > 0);
         bool hasBalance = (address(this).balance > 0);
         upkeepNeeded = (isOpen && timePassed && hasPlayers && hasBalance);
+        return (upkeepNeeded, "0x0");
     }
 
     //external functions are a little cheaper than public ones
@@ -114,41 +118,62 @@ contract Lottery is VRFConsumerBaseV2, AutomationCompatibleInterface {
         //1. Request the random number
         //2. AFter getting that random number, do something with it
         //In this function, we will request the random number
-
+        console.log("1");
         (bool upkeepNeeded, ) = checkUpkeep("");
         if(!upkeepNeeded){
             revert Lottery__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_lotteryState));
         }
-
+        console.log("2");
         s_lotteryState = LotteryState.CALCULATING;
 
-        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+        /*uint256 requestId = s_vrfCoordinator.requestRandomWords(
             i_gasLane, //maximum gas price you are willing to pay for a request in wei
             i_subscriptionID, //the subscription ID that this contract uses for funding requests
             REQUEST_CONFIRMATIONS, //how many confirmations chainlink node should wait before responding
             i_callbackGasLimit, //limit for how much gas to use for the callback request to your contract's fulfillRandomWords()
             NUM_WORDS
+        );*/
+        console.log("3");
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: i_gasLane,
+                subId: i_subscriptionID,
+                requestConfirmations : REQUEST_CONFIRMATIONS,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: NUM_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+                    VRFV2PlusClient.ExtraArgsV1({nativePayment: true})
+                )
+            })
         );
+        console.log("4");
         emit RequestedLotteryWinner(requestId);
+        console.log("5");
     }
 
     function fulfillRandomWords(
         uint256 /*requestId*/,
-        uint256[] memory randomWords
+        uint256[] calldata randomWords
     ) internal override {
         //we are using override with this function because we are overriding a virtual function(this overridden function is present in the chainlink file that we are importing) with the same name
         //In this function, we will fulfil random numbers
         uint256 indexOfWinner = randomWords[0] % s_players.length; //by dividing the random number by the number of players, the winner's index will be equal to remainder
         address payable recentWinner = s_players[indexOfWinner]; //storing the winner's address
         s_recentWinner = recentWinner;
+        console.log("111");
         s_lotteryState = LotteryState.OPEN; //changing the state to OPEN
         s_players = new address payable[](0); //resetting the players array
         s_lastTimeStamp = block.timestamp; //reset the time to current time
+        console.log("112");
         (bool success, ) = recentWinner.call{value: address(this).balance}(""); //sending the winner the lottery prize
+        console.log("113");
         if (!success) {
             revert Lottery__TransferFailed();
         }
+        console.log("114");
         emit WinnerPicked(recentWinner);
+        console.log("115");
     }
 
     //View/Pure Functions

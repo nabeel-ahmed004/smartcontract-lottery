@@ -7,25 +7,37 @@ const { assert, expect } = require("chai");
 
 !developmentChains.includes(network.name)
   ? describe.skip
-  : describe("Lottery Unit Tests", function () {
-      let lottery, vrfCoordinatorV2Mock, entranceFee, deployer, interval; // 'ReferenceError: deployer is not defined' may be solved by declaring deployer outside of beforeEach just like here
+  : describe("Lottery Unit Tests", async () => {
+      let lottery,
+        vrfCoordinatorV2_5Mock,
+        entranceFee,
+        deployer,
+        player,
+        interval,
+        lotteryPlayer,
+        vrfCoordinatorV2_5; // 'ReferenceError: deployer is not defined' may be solved by declaring deployer outside of beforeEach just like here
       const chainId = network.config.chainId;
 
+      vrfCoordinatorV2_5 = "0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B";
       beforeEach(async function () {
         deployer = (await getNamedAccounts()).deployer;
-        await deployments.fixture("all"); //deploys all the files with export tag "all"
+        accounts = await ethers.getSigners();
+        player = accounts[1];
+
+        await deployments.fixture(["all"]); //deploys all the files with export tag "all"
         const lotteryDeployment = await deployments.get("Lottery");
         lottery = await ethers.getContractAt(
           lotteryDeployment.abi,
           lotteryDeployment.address
         );
+        lotteryPlayer = lottery.connect(player);
 
-        const vrfCoordinatorV2MockDeployment = await deployments.get(
-          "VRFCoordinatorV2Mock"
+        const vrfCoordinatorV2_5MockDeployment = await deployments.get(
+          "VRFCoordinatorV2_5Mock"
         );
-        vrfCoordinatorV2Mock = await ethers.getContractAt(
-          vrfCoordinatorV2MockDeployment.abi,
-          vrfCoordinatorV2MockDeployment.address
+        vrfCoordinatorV2_5Mock = await ethers.getContractAt(
+          vrfCoordinatorV2_5MockDeployment.abi,
+          vrfCoordinatorV2_5MockDeployment.address
         );
         entranceFee = await lottery.getEntranceFee();
         interval = await lottery.getInterval();
@@ -40,6 +52,7 @@ const { assert, expect } = require("chai");
           assert.equal(interval.toString(), networkConfig[chainId]["interval"]);
         });
       });
+
       describe("enterLottery", function () {
         it("Reverts if not enough is paid", async function () {
           await expect(lottery.enterLottery()).to.be.revertedWithCustomError(
@@ -49,9 +62,9 @@ const { assert, expect } = require("chai");
         });
 
         it("Records players when they enter", async function () {
-          await lottery.enterLottery({ value: entranceFee });
-          const playerFromContract = await lottery.getPlayers(0);
-          assert.equal(playerFromContract, deployer);
+          await lotteryPlayer.enterLottery({ value: entranceFee });
+          const playerFromContract = await lotteryPlayer.getPlayers(0);
+          assert.equal(playerFromContract, player.address);
         });
 
         it("Emits an event on enter", async function () {
@@ -178,11 +191,19 @@ const { assert, expect } = require("chai");
 
         it("fulfillRandomWords can only be called after performUpkeep", async function () {
           await expect(
-            vrfCoordinatorV2Mock.fulfillRandomWords(0, lottery.target)
-          ).to.be.revertedWith("nonexistent request");
+            vrfCoordinatorV2_5Mock.fulfillRandomWords(0, lottery.target)
+          ).to.be.revertedWithCustomError(
+            vrfCoordinatorV2_5Mock,
+            "InvalidRequest"
+          );
           await expect(
-            vrfCoordinatorV2Mock.fulfillRandomWords(1, lottery.target)
-          ).to.be.revertedWith("nonexistent request");
+            vrfCoordinatorV2_5Mock.fulfillRandomWords(1, lottery.target)
+          ).to.be.revertedWithCustomError(
+            vrfCoordinatorV2_5Mock,
+            "InvalidRequest"
+          );
+          console.log("Cleared!");
+          console.log("***********************");
         });
 
         it("picks a winner, resets the lottery and sends the money", async function () {
@@ -190,6 +211,7 @@ const { assert, expect } = require("chai");
           const startingAccountIndex = 2; // because 0th account is of the deployer, 1st account is of the player so we start with 2nd index
           const accounts = await ethers.getSigners();
           // after this loop, we are going to have 5 players
+          console.log("11");
           for (
             let i = startingAccountIndex;
             i < startingAccountIndex + additionalPlayers;
@@ -202,19 +224,22 @@ const { assert, expect } = require("chai");
               value: entranceFee,
             });
           }
+          console.log("12");
           const startingTimeStamp = await lottery.getLatestTimeStamp(); // stores starting timestamp (before we fire our event)
           // when we call 'performUpkeep()', we are acting as the chanilink keepers
           // when we call 'fulfillRandomWords()', we are acting as the chainlink VRF
           // we will have to wait for the 'fulfillRandomWords()' to be called
-
+          console.log("13");
           await new Promise(async (resolve, reject) => {
             // when the WinnerPicked event emits, do some stuff in the async function
             lottery.once("WinnerPicked", async () => {
               console.log("Found the event!");
+              console.log("14");
               // assert throws an error if it fails, so we need to wrap
               // it in a try/catch so that the promise returns event
               // if it fails.
               try {
+                console.log("15");
                 const recentWinner = await lottery.getRecentWinner();
                 console.log(`Winner: ${recentWinner}`);
                 const WinnerEndingBalance =
@@ -222,6 +247,7 @@ const { assert, expect } = require("chai");
                 const numberOfPlayers = await lottery.getNumberofPlayers();
                 const lotteryState = await lottery.getLotteryState();
                 const endingTimeStamp = await lottery.getLatestTimeStamp();
+                console.log("16");
                 assert(endingTimeStamp > startingTimeStamp);
                 assert.equal(numberOfPlayers.toString(), "0");
                 assert.equal(lotteryState.toString(), "0");
@@ -233,6 +259,7 @@ const { assert, expect } = require("chai");
                     entranceFee
                   ).toString()
                 );
+                console.log("17");
                 resolve(); // if try passes, resolves the promise
               } catch (e) {
                 reject(e); // if try fails, rejects the promise
@@ -240,16 +267,20 @@ const { assert, expect } = require("chai");
             });
             // We are setting up the listener
             // below, firstly we wil fire the event and then the above listener will pick it up and resolves it
-
+            console.log("18");
             const transaction = await lottery.performUpkeep("0x");
             const transactionReceipt = await transaction.wait(1);
             const WinnerStartingBalance = await accounts[2].provider.getBalance(
               accounts[2].address
             );
-            await vrfCoordinatorV2Mock.fulfillRandomWords(
+            console.log("19");
+            console.log(`tx: ${transactionReceipt.logs[1].args.requestId}`);
+            console.log(`address: ${lottery.target}`);
+            await vrfCoordinatorV2_5Mock.fulfillRandomWords(
               transactionReceipt.logs[1].args.requestId,
               lottery.target
             );
+            console.log("20");
           });
         });
       });

@@ -1,10 +1,9 @@
-const { network, deployments, getNamedAccounts, ethers } = require("hardhat");
+/*const { network, deployments, getNamedAccounts, ethers } = require("hardhat");
 const {
   developmentChains,
   networkConfig,
 } = require("../../helper-hardhat-config");
 const { assert, expect } = require("chai");
-const { accessListify } = require("ethers");
 
 developmentChains.includes(network.name)
   ? describe.skip
@@ -42,14 +41,15 @@ developmentChains.includes(network.name)
                   accounts[0].address
                 );
                 const endingTimeStamp = await lottery.getLatestTimeStamp();
+
                 console.log("4");
                 await expect(lottery.getPlayers(0)).to.be.reverted;
                 assert.equal(recentWinner.toString(), accounts[0].address);
                 assert.equal(lotteryState.toString(), "0");
-                /*assert.equal(
+                assert.equal(
                   winnerEndingBalance.toString(),
                   (winnerStartingBalance + entranceFee).toString()
-                );*/
+                );
                 assert(endingTimeStamp > startingTime);
                 console.log("5");
                 resolve();
@@ -68,75 +68,92 @@ developmentChains.includes(network.name)
               accounts[0].address
             );
             console.log("Waiting for the event to emit!");
+            // const { upkeepNeeded } = await lottery.checkUpkeep.staticCall("0x");
+            // console.log(`upkeepNeeded: ${upkeepNeeded}`);
+            // await lottery.performUpkeep("0x");
             console.log("8");
+            // resolve();
           });
         });
       });
     });
+*/
 
-// new
-/*
 const { assert, expect } = require("chai");
-const { getNamedAccounts, ethers, network } = require("hardhat");
-const { developmentChains } = require("../../helper-hardhat-config");
+const { deployments, ethers, getNamedAccounts, network } = require("hardhat");
+const {
+  developmentChains,
+  netwokConfig,
+} = require("../../helper-hardhat-config");
 
 developmentChains.includes(network.name)
   ? describe.skip
-  : describe("Raffle Staging Tests", function () {
-      let raffle, raffleEntranceFee, deployer;
+  : describe("Lottery", async () => {
+      let deployer;
+      let Lottery;
+      let accounts;
+      let LotteryFee;
+      let deployerAddress;
+      let winnerStartingBalance;
 
-      beforeEach(async function () {
-        deployer = (await getNamedAccounts()).deployer;
-        raffle = await ethers.getContract("Raffle", deployer);
-        raffleEntranceFee = await raffle.getEntranceFee();
+      beforeEach(async () => {
+        accounts = await ethers.getSigners();
+        deployer = accounts[0];
+        deployerAddress = deployer;
+        const lotteryDeployment = await deployments.get("Lottery");
+        let lotteryy = await ethers.getContractAt(
+          lotteryDeployment.abi,
+          lotteryDeployment.address
+        );
+        Lottery = lotteryy.connect(deployer);
+        LotteryFee = await Lottery.getEntranceFee();
       });
+      describe("fullfillrandomwords", async () => {
+        it("works automatically with ChainlinkVRF and Chainlink Keepers", async () => {
+          const startingTimeStamp = await Lottery.getLatestTimeStamp();
 
-      describe("fulfillRandomWords", function () {
-        it("works with live Chainlink Keepers and Chainlink VRF, we get a random winner", async function () {
-          // enter the raffle
-          console.log("Setting up test...");
-          const startingTimeStamp = await raffle.getLastTimeStamp();
-          const accounts = await ethers.getSigners();
-
-          console.log("Setting up Listener...");
           await new Promise(async (resolve, reject) => {
-            // setup listener before we enter the raffle
-            // Just in case the blockchain moves REALLY fast
-            raffle.once("WinnerPicked", async () => {
-              console.log("WinnerPicked event fired!");
+            console.log("Setting up Listener...");
+            Lottery.once("WinnerPicked", async () => {
+              console.log("Winner picked event is fired !! ");
+              // resolve();
               try {
-                // add our asserts here
-                const recentWinner = await raffle.getRecentWinner();
-                const raffleState = await raffle.getRaffleState();
-                const winnerEndingBalance = await accounts[0].getBalance();
-                const endingTimeStamp = await raffle.getLastTimeStamp();
+                const LotteryState = await Lottery.getLotteryState();
+                const winner = await Lottery.getRecentWinner();
+                const winner_endBal = await ethers.provider.getBalance(winner);
+                const endingTimeStamp = await Lottery.getLatestTimeStamp();
 
-                await expect(raffle.getPlayer(0)).to.be.reverted;
-                assert.equal(recentWinner.toString(), accounts[0].address);
-                assert.equal(raffleState, 0);
+                assert.equal((await Lottery.getNumPlayers()).toString(), "0");
                 assert.equal(
-                  winnerEndingBalance.toString(),
-                  winnerStartingBalance.add(raffleEntranceFee).toString()
+                  winner_endBal.toString(),
+                  (await deployer.getBalance()).toString()
+                );
+                assert.equal(LotteryState, 0);
+                assert.equal(
+                  winner_endBal.toString(),
+                  winnerStartingBalance.add(LotteryFee).toString()
                 );
                 assert(endingTimeStamp > startingTimeStamp);
                 resolve();
-              } catch (error) {
-                console.log(error);
-                reject(error);
+              } catch (e) {
+                console.log(e);
+                reject(e);
               }
             });
-            // Then entering the raffle
-            console.log("Entering Raffle...");
-            const tx = await raffle.enterRaffle({ value: raffleEntranceFee });
-            await tx.wait(1);
-            console.log("Ok, time to wait...");
-            const winnerStartingBalance = await accounts[0].getBalance();
-
-            // and this code WONT complete until our listener has finished listening!
+            try {
+              console.log("Entering the lottery");
+              const tx = await Lottery.enterLottery({ value: LotteryFee });
+              await tx.wait(1);
+              console.log("Player entered");
+              // winnerStartingBalance = await deployeradd.getbalance();
+              winnerStartingBalance = await ethers.provider.getBalance(
+                accounts[0].address
+              );
+            } catch (e) {
+              console.log(e);
+              reject(e);
+            }
           });
         });
       });
     });
-
-// again
-*/
